@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "first backend project",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev" :  "nodemon src/index.js"
   },
   "keywords": [
     "node",
@@ -12,5 +15,8 @@
     "project"
   ],
   "author": "Armaan Yadav",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
 }
