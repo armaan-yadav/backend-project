@@ -19,4 +19,3 @@ const asyncHandlerTRYCATCH = (fn) => async (req, res, next) => {
     });
   }
 };
-asyncHandlerTC(greet);

@@ -53,11 +53,11 @@ userSchema.pre("save", async function (next) {
   //   PROBELM : whenever user updates anything in schema, this middleware executes and ecnrypts password
   // SOLUTION : add a check
   if (!this.isModified("password")) return next();
-  this.password = bcrypt.hash(this.password, 7); //excrypts the password
+  this.password = await bcrypt.hash(this.password, 7); //excrypts the password
   next(); //after encryption done , move to next middleware
 });
-
 userSchema.methods.isPasswordCorrect = async function (password) {
+  // arrow functions are not used as we want to have access to *this* keyword
   return await bcrypt.compare(password, this.password);
 };
 
