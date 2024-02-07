@@ -85,4 +85,4 @@ userSchema.methods.generateRefreshToken = function () {
     }
   );
 };
-export const User = model("User", userSchema);
+export const User = model("User", userSchema); //can directly contact with databse 
