@@ -3,7 +3,39 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/apiError.js";
 import ApiResponse from "../utils/apiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+
+const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const refreshToken = user.generateAccessToken();
+    const accessToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Something went wrong while generating Access or Refresh token"
+    );
+  }
+};
+
 const registerUser = asyncHandler(async (req, res) => {
+  /*       #Registering a user
+  take credentials  //
+  validate the above //
+  check in DB if user already exists!! : username and email both //
+  check for images : avatar //
+  upload images on cloudinary and extract the related URL //
+  --data saara hai mere paas
+  create a user object and create an entry in mongo db //
+  remove password and refresh token field as we dont want to expose them to frontend //
+  check for reponse : user  is created or not //
+  if user created then return reponse //
+  DONE
+   */
   //taking data from frontend
   const { username, email, fullName, password } = req.body;
   // console.log(email, username, fullName, password);
@@ -35,7 +67,6 @@ const registerUser = asyncHandler(async (req, res) => {
   //--------file upload on local server
   const avatarLocalPath = req.files?.avatar[0]?.path;
   // const coverImageLocalPath = req.files?.coverImage[0]?.path ||"";
-
 
   let coverImageLocalPath;
   if (
@@ -79,28 +110,96 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   //generate the response and return it
-  console.log("req.body : ", req.body);
-  console.log("req.files : ", req.files);
-  console.log("user : ", user);
+  // console.log("req.body : ", req.body);
+  // console.log("req.files : ", req.files);
+  // console.log("user : ", user);
   return res
     .status(201)
     .json(new ApiResponse("User registered Successfully", 201, createdUser));
 });
 
-/*       #Registering a user
-take credentials  //
-validate the above //
-check in DB if user already exists!! : username and email both //
-check for images : avatar //
-upload images on cloudinary and extract the related URL //
---data saara hai mere paas
-create a user object and create an entry in mongo db //
-remove password and refresh token field as we dont want to expose them to frontend //
-check for reponse : user  is created or not //
-if user created then return reponse //
-DONE
+const loginUser = asyncHandler(async (req, res) => {
+  /*        #login user
+  take credentials
+  validate credentials
+  check if username or email exists in db else ask to register
+  if user exists then check password
+  generate access and refresh token
+  if password is correct then login the user (session create karooo)
+  DONE
+   */
+  //take credentials
+  const { username, password, email } = req.body;
+  if (!(username || password)) {
+    throw new ApiError(400, "username or email is required");
+  }
 
+  //find user in db
+  const user = await User.findOne({
+    $or: [{ username }, { email }],
+  });
 
- */
+  // user => returned by the db on finding
+  // User =>a mongoose object
+  if (!user) {
+    throw new ApiError(404, "User does not exist. Register karo beyy");
+  }
+  // user found => check for password
+  const isPasswordCorrect = user.isPasswordCorrect(password);
 
-export { registerUser };
+  if (!isPasswordCorrect) {
+    throw new ApiError(401, "Invalid Password");
+  }
+
+  //generate tokens
+  const { refreshToken, accessToken } = await generateAccessAndRefreshToken(
+    user._id
+  );
+  // optional step : calling db again to get a new object and modify it so that it could be sent to frontend
+
+  const loggedInUser = await User.findOne(user._id).select(
+    "-password -refreshToken"
+  );
+
+  //setting up cookies
+  const options = {
+    //by default cookies are modifiable from frontend but making http and secure true makes it
+    // editable only from server side
+    http: true,
+    secure: true,
+  };
+
+  //returning response and cookies
+  return res
+    .status(200)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .json(
+      new ApiResponse("user logged in successfully", 200, {
+        user: loggedInUser,
+        accessToken,
+        refreshToken,
+      })
+    );
+});
+
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: { refreshToken: undefined },
+    },
+    { new: true } //returns the new value instead of the  old one
+  );
+  const options = {
+    http: true,
+    secure: true,
+  };
+
+  res
+    .status(200)
+    .clearCookie("refreshToken", options)
+    .clearCookie("accessToken", options)
+    .json(new ApiResponse("User loggedout successfully", 200, {}));
+});
+export { registerUser, loginUser, logoutUser };
