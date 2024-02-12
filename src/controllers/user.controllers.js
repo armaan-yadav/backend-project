@@ -148,7 +148,7 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User does not exist. Register karo beyy");
   }
   // user found => check for password
-  const isPasswordCorrect = user.isPasswordCorrect(password);
+  const isPasswordCorrect = await user.isPasswordCorrect(password);
 
   if (!isPasswordCorrect) {
     throw new ApiError(401, "Invalid Password");
@@ -254,4 +254,44 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     throw new ApiError(401, error?.message || "Invalid refresh token");
   }
 });
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  //take credentials -> oldP, newP, confirmP
+  //password change => user already logged in hai
+  // get user id from req.user
+  // get user from database
+  //validate given password and user's password
+  //user.password = newP
+  //user.save({validateBeforeSave : false})
+  // return res.status().json()
+
+  const { oldPassword, newPassword, confirmPassword } = req.body;
+  if (!oldPassword || oldPassword == "") {
+    throw new ApiError(401, "Old password is required");
+  }
+
+  const user = await User.findById(req?.user?._id);
+
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+  if (!isPasswordCorrect) {
+    throw new ApiError(401, "Incorrect old password");
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(401, "Old and confirm password do not match");
+  }
+
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: true });
+
+  return res
+    .status(200)
+    .json(new ApiResponse("Password changed successfully", 200, {}));
+});
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+};
