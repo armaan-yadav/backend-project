@@ -186,6 +186,7 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
+  //add logout functinality => refer to previous commit
   await User.findByIdAndUpdate(
     req.user._id,
     {
