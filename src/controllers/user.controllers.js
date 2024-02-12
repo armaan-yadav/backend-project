@@ -7,11 +7,11 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 const generateAccessAndRefreshToken = async (userId) => {
   try {
     const user = await User.findById(userId);
-    const refreshToken = user.generateAccessToken();
-    const accessToken = user.generateRefreshToken();
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await user.save({ validateBeforeSave: false }); //turns off the validation => wont check for password, email etc
 
     return { accessToken, refreshToken };
   } catch (error) {
@@ -92,7 +92,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // create entry in mongodb
   const user = await User.create({
     fullName,
-    username: username,
+    username: username.toLowerCase(),
     email,
     password,
     avatar: avatarCloudinaryUrl.url,
@@ -129,9 +129,11 @@ const loginUser = asyncHandler(async (req, res) => {
   DONE
    */
   //take credentials
-  const { username, password, email } = req.body;
-  if (!(username || password)) {
-    throw new ApiError(400, "username or email is required");
+  const { username, email, password } = req.body;
+
+  // console.log(req.body);
+  if (!username) {
+    throw new ApiError(400, "username  is required");
   }
 
   //find user in db
@@ -165,7 +167,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const options = {
     //by default cookies are modifiable from frontend but making http and secure true makes it
     // editable only from server side
-    http: true,
+    httpOnly: true,
     secure: true,
   };
 
@@ -191,8 +193,9 @@ const logoutUser = asyncHandler(async (req, res) => {
     },
     { new: true } //returns the new value instead of the  old one
   );
+
   const options = {
-    http: true,
+    httpOnly: true,
     secure: true,
   };
 

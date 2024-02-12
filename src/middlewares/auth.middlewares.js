@@ -8,6 +8,7 @@ export const verifyJwt = asyncHandler(async (req, _, next) => {
       req.cookies?.accessToken /*browser*/ ||
       req.header("Authorization")?.replace("Bearer ", ""); //mobile//
 
+    console.log(req.cookies);
     if (!accessToken) {
       throw new ApiError(401, "Unauthorized Access");
     }
