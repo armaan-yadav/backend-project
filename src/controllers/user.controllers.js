@@ -381,6 +381,84 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     );
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+  if (!username?.trim()) {
+    throw new ApiError(400, "Username is missing");
+  }
+
+  //aggregation pipelines start //
+  // aggregate pipeline returns array of obj
+  const channel = await User.aggregate([
+    {
+      //stage1
+      //filters all the collection in databse and only passes
+      // the collections where username is equal to given username
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      //stage2
+      //finding the number of subscribers of channel
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      //stage3
+      //finding the number of channels user is subscribed to
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      //stage4
+      //adding new fields  : channelSubscribers , channelsSubscribedTo , isSubscribed to original user obj
+      $addFields: {
+        channelSubscribersCount: {
+          $size: "$subscribers", //using $ bcoz subscribers is now a field
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo", //using $ bcoz subscribedTo is now a field
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            theb: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      //only projects the values which are  marked as 1 -> rexduces traffic
+      $project: {
+        fullName: 1,
+        username: 1,
+        email: 1,
+        channelSubscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+      },
+    },
+  ]);
+  if (!channel?.length) {
+    throw new ApiError(404, "channel does not exist");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse("channel fetched successfully", 200, channel[0]));
+});
+
 export {
   registerUser,
   loginUser,
@@ -391,4 +469,5 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
 };
